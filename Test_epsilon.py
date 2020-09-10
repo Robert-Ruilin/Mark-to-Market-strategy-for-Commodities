@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
-from matplotlib.pyplot import MultipleLocator  
+import math
+from matplotlib.ticker import FuncFormatter  
 
 class Epsilon_calibration():
     
@@ -66,27 +67,28 @@ class Epsilon_calibration():
             
         return Epsilon  # T days * 8 identities
 
-    def epsilon_analysis(self, data, filter_0 = True):  #得到epsilon的分布和大小
+    def epsilon_analysis(self, data, filter_0 = False):  #得到epsilon的分布和大小
         Tbepsilon_set = []
         if filter_0:  #filter_0开关用来过滤 epsilon = 0的情况
             for i in range(len(data)):
                 data[i] = data[i][data[i]['epsilon'] != 0]    
         for i in range(len(data)):
-            table_epsilon = pd.DataFrame(index = range(1), columns = ['日期','均值','epsilon<=1占比','1<epsilon<=2占比','2<epsilon<=3占比','3<epsilon<=4占比',
+            table_epsilon = pd.DataFrame(index = range(1), columns = ['日期','均值','epsilon=0占比','0<epsilon<=1占比','1<epsilon<=2占比','2<epsilon<=3占比','3<epsilon<=4占比',
                                                                                     '4<epsilon<=5占比','epsilon>5占比','1/4分位点','中位数','3/4分位点','vol of epsilon','合约'])
             data[i] = data[i].dropna(subset = ['epsilon'])
             table_epsilon.iloc[0,1] = data[i]['epsilon'].mean()  #计算epsilon均值
-            table_epsilon.iloc[0,2] = '%.2f%%' % (data[i]['epsilon'][data[i]['epsilon']<=1].count()/data[i]['epsilon'].count() * 100)  #计算epsilon在[0,1]区间占比
-            table_epsilon.iloc[0,3] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>1) & (data[i]['epsilon']<=2)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(1,2]区间占比
-            table_epsilon.iloc[0,4] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>2) & (data[i]['epsilon']<=3)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(2,3]区间占比
-            table_epsilon.iloc[0,5] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>3) & (data[i]['epsilon']<=4)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(3,4]区间占比
-            table_epsilon.iloc[0,6] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>4) & (data[i]['epsilon']<=5)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(4,5]区间占比
-            table_epsilon.iloc[0,7] = '%.2f%%' % (data[i]['epsilon'][data[i]['epsilon']>5].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(5,+infinity)区间占比
-            table_epsilon.iloc[0,8] = data[i]['epsilon'].quantile(0.25)  #计算epsilon25%分位点
-            table_epsilon.iloc[0,9] = data[i]['epsilon'].quantile(0.5)  #计算epsilon中位数
-            table_epsilon.iloc[0,10] = data[i]['epsilon'].quantile(0.75)  #计算epsilon75%分位点
-            table_epsilon.iloc[0,11] = data[i]['epsilon'].std()  #计算epsilon的波动率
-            table_epsilon.iloc[0,12] = self.identity[i]  #标注合同种类
+            table_epsilon.iloc[0,2] = '%.2f%%' % (data[i]['epsilon'][data[i]['epsilon']==0].count()/data[i]['epsilon'].count() * 100)  #计算epsilon = 0占比
+            table_epsilon.iloc[0,3] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>0) & (data[i]['epsilon']<=1)].count()/data[i]['epsilon'].count() * 100)  #计算epsilon在(0,1]区间占比
+            table_epsilon.iloc[0,4] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>1) & (data[i]['epsilon']<=2)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(1,2]区间占比
+            table_epsilon.iloc[0,5] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>2) & (data[i]['epsilon']<=3)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(2,3]区间占比
+            table_epsilon.iloc[0,6] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>3) & (data[i]['epsilon']<=4)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(3,4]区间占比
+            table_epsilon.iloc[0,7] = '%.2f%%' % (data[i]['epsilon'][(data[i]['epsilon']>4) & (data[i]['epsilon']<=5)].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(4,5]区间占比
+            table_epsilon.iloc[0,8] = '%.2f%%' % (data[i]['epsilon'][data[i]['epsilon']>5].count()/data[i]['epsilon'].count() * 100) #计算epsilon在(5,+infinity)区间占比
+            table_epsilon.iloc[0,9] = data[i]['epsilon'].quantile(0.25)  #计算epsilon25%分位点
+            table_epsilon.iloc[0,10] = data[i]['epsilon'].quantile(0.5)  #计算epsilon中位数
+            table_epsilon.iloc[0,11] = data[i]['epsilon'].quantile(0.75)  #计算epsilon75%分位点
+            table_epsilon.iloc[0,12] = data[i]['epsilon'].std()  #计算epsilon的波动率
+            table_epsilon.iloc[0,13] = self.identity[i]  #标注合同种类
             Tbepsilon_set.append(table_epsilon)
             
         return Tbepsilon_set  # 8 identities * 1 column
@@ -119,21 +121,40 @@ class Epsilon_calibration():
         
         return output_list  # 8 identities * T days
     
-    def price_chart(self, output_list):  #绘制epsilon在指定时段内的波动情况        
+    def price_chart(self, output_list):  #绘制epsilon在指定时段内的波动情况
         for i in range(len(output_list)):
-            plt.figure(figsize = (20, 12))
-            X = output_list[i]['日期']
-            Y1 = output_list[i]['均值']
-            plt.plot(X, Y1, color = 'blue', linewidth = 1.0, linestyle = '-')
-            plt.xticks(rotation = 30)
-            x_major_locator = MultipleLocator(2)
-            ax = plt.gca()
-            ax.xaxis.set_major_locator(x_major_locator)
+            fig, left_axis = plt.subplots(figsize = (20, 12))
             plt.rcParams['font.sans-serif']=['SimHei']
             plt.rcParams['axes.unicode_minus'] = False
-            plt.title('Epsilon波动图'+'——'+self.identity[i]+'合约', fontsize = 20)
-            plt.xlabel('日期',fontsize = 14)
-            plt.ylabel('Epsilon',fontsize = 14)
+            X = output_list[i]['日期']        
+            Y1 = output_list[i]['均值']
+            p1, = left_axis.plot(X, Y1, 'ro-', label = 'Epsilon每日均值')
+            
+            right_axis = left_axis.twinx()
+            Y2 = output_list[i]['0<epsilon<=1占比'].apply(lambda x: float(x.strip('%'))/100)
+            Y3 = output_list[i]['1<epsilon<=2占比'].apply(lambda x: float(x.strip('%'))/100)
+            Y_sum = output_list[i]['epsilon=0占比'].apply(lambda x: 1-float('0.'+x[0:2]+x[3:5]))
+            Y4 = Y_sum - Y2 - Y3
+            right_axis.bar(X, np.array(Y2), width = 0.8, facecolor='#9999ff', alpha = 0.6, label = 'Epsilon每日落在(0,1]的比例')
+            right_axis.bar(X, np.array(Y3), width = 0.8, bottom = np.array(Y2), facecolor='b', alpha = 0.6, label = 'Epsilon每日落在(1,2]的比例')
+            right_axis.bar(X, np.array(Y4), width = 0.8, bottom = np.array(Y3+Y2), facecolor='#00BFFF', alpha = 0.6, label = 'Epsilon每日落在(2,+infty)的比例')   
+            
+            left_axis.set_xticklabels(X, rotation = 30)
+            #x_major_locator = MultipleLocator(2)
+            #left_axis.xaxis.set_major_locator(x_major_locator)
+            
+            right_axis.set_ylim(0,math.ceil(max(Y_sum)*20)/20+0.01)  
+            right_axis.set_yticks(np.arange(0,math.ceil(max(Y_sum)*20)/20+0.01,math.ceil(max(Y_sum)*20)/200))
+            def to_percent(temp, position):
+                return '%.1f%%' %(100*temp)
+            right_axis.yaxis.set_major_formatter(FuncFormatter(to_percent))
+            left_axis.set_title('Epsilon波动图'+'——'+self.identity[i]+'合约', fontsize = 20)
+            left_axis.set_xlabel('日期',fontsize = 14)
+            left_axis.set_ylabel('Epsilon每日均值',fontsize = 14)
+            
+            left_axis.legend(loc=(.02,.92), fontsize = 12)
+            right_axis.legend(loc=(.02,.80), fontsize = 12) 
+            
             plt.savefig(self.identity[i]+'.png')
         plt.show()
         
@@ -147,4 +168,5 @@ if __name__ == '__main__':
     Test = Epsilon_calibration(dir_name)
     table = Test.output_epsilon_table()
     Test.price_chart(table)
+
 
