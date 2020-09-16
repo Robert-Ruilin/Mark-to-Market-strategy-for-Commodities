@@ -11,7 +11,9 @@ import matplotlib.pyplot as plt
 import os
 import math
 from matplotlib.pyplot import MultipleLocator
-from matplotlib.ticker import FuncFormatter  
+from matplotlib.ticker import FuncFormatter 
+import seaborn as sns
+from scipy import stats
 
 class Epsilon_calibration():
     
@@ -113,8 +115,8 @@ class Epsilon_calibration():
             ax01.plot(X, Y2, 'c-', alpha = 0.4, label = '日内epsilon变动')
             ax01.xaxis.set_major_locator(x_major_locator)
             ax01.set_ylabel('Epsilon数值')
-            ax[0].legend(bbox_to_anchor=(1, 1))
-            ax01.legend(bbox_to_anchor=(1, 0.9))
+            ax[0].legend(bbox_to_anchor=(0.45, -0.075))
+            ax01.legend(bbox_to_anchor=(0.65, -0.075))
             
             Y1 = Epsilon[id_date][id_name]['收益率'][1:]
             ax[1].plot(X, Y1, '-', label = '日内价格收益率变动')
@@ -262,6 +264,23 @@ if __name__ == '__main__':
     #Epsilon = Test.all_epsilon()
     #Test.epsilon_chart(table)
     #mkt = Test.market_trend(Test.all_epsilon())
-    date = ['20200824']
-    name = 'ag2101'
-    Test.daily_market_trend(Epsilon, date, name)
+    #date = ['20200904']
+    #name = 'ag2102'
+    #Test.daily_market_trend(Epsilon, date, name)
+
+identity = ['ag2101', 'ag2102', 'ag2103', 'ag2104', 'ag2105', 'au2102', 'au2104', 'au2108']
+
+total = []
+for i in range(51):
+    df = pd.concat(Epsilon[i], axis = 0)
+    total.append(df)
+total_data = pd.concat(total, axis = 0)
+total_data = total_data.dropna(subset = ['epsilon'])
+total_data = total_data[(total_data['epsilon'] != np.inf)]
+for i in range(8):
+    data_set = total_data['epsilon'][total_data['合约']==identity[i]]
+    plt.figure(figsize = (20,12))
+    weights = np.ones_like(data_set)/float(len(data_set))
+    plt.hist(data_set, bins = 50, weights = weights, range = (0,data_set.max()))
+    plt.savefig(identity[i]+'epsilon分布.png')
+plt.show()
